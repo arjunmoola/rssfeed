@@ -54,6 +54,11 @@ type apiConfig struct {
     DB *database.Queries
 }
 
+type CreateFeedResponseMsg struct {
+    Feed database.Feed `json:"feed"`
+    FeedFollow database.FeedFollow `json:"feed_follow"`
+}
+
 func (c *apiConfig) middlewareAuth(handler authedHandler) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
         log.Println("processing request")
@@ -131,6 +136,12 @@ func (c *apiConfig) createFeedFollowAuth(w http.ResponseWriter, r *http.Request,
 func (c *apiConfig) deleteFeedFollow(w http.ResponseWriter, r *http.Request, user database.User) {
     id := r.PathValue("feed_follows")
 
+    if id == "" {
+        log.Println("no feed follow id has been provided")
+        respondWithError(w, http.StatusOK, "no id has been provded")
+        return 
+    }
+
 
     //var reqmsg deleteFeedFollowMsg
 
@@ -159,6 +170,25 @@ func (c *apiConfig) deleteFeedFollow(w http.ResponseWriter, r *http.Request, use
     respondWithJSON(w, http.StatusOK, deletedFeedFollow)
 
     log.Printf("Feed Follow: %v has been deleted", deletedFeedFollow.ID)
+}
+
+func (c *apiConfig) getFeedFollows(w http.ResponseWriter, r *http.Request, user database.User) {
+    log.Println("process get feed follows request")
+
+    feedFollows, err := c.DB.GetFeedFollowsWithUserId(context.Background(), user.ID)
+    
+    if err != nil {
+        log.Println(err)
+        respondWithError(w, http.StatusOK, "unable to get feed follows")
+        return
+    }
+
+    log.Println("select query successful")
+
+    respondWithJSON(w, http.StatusOK, feedFollows)
+
+    log.Println("successfully processesed requests")
+
 }
 
 func (c *apiConfig) createFeedAuth(w http.ResponseWriter, r *http.Request, user database.User) {
@@ -201,9 +231,34 @@ func (c *apiConfig) createFeedAuth(w http.ResponseWriter, r *http.Request, user 
         return
     }
 
-    respondWithJSON(w, http.StatusOK, createdFeed)
+    log.Println("creating feed follow for the newly created feed")
 
-    log.Println("feed successfully created")
+    feedFollowParams := database.CreateFeedFollowParams {
+        ID: uuid.New(),
+        CreatedAt: time.Now(),
+        UpdatedAt: time.Now(),
+        UserID: user.ID,
+        FeedID: createdFeed.ID,
+    }
+
+    createdFeedFollow, err := c.DB.CreateFeedFollow(context.Background(), feedFollowParams)
+
+    if err != nil {
+        log.Println(err)
+        respondWithError(w, http.StatusOK, "Unable to create feed follow")
+        return
+    }
+
+    log.Println("created feed follow")
+
+    responseMsg := CreateFeedResponseMsg {
+        createdFeed,
+        createdFeedFollow,
+    }
+
+    respondWithJSON(w, http.StatusOK, responseMsg)
+
+    log.Println("feed and feed follow successfully created")
 
 }
 
@@ -363,7 +418,8 @@ func main() {
     mux.HandleFunc("GET /v1/users", config.middlewareAuth(config.getUserHandlerAuth))
     mux.HandleFunc("POST /v1/feeds", config.middlewareAuth(config.createFeedAuth))
     mux.HandleFunc("POST /v1/feed_follows", config.middlewareAuth(config.createFeedFollowAuth))
-    mux.HandleFunc("DELETE /v1/feed_follows{feed_follows}", config.middlewareAuth(config.deleteFeedFollow))
+    mux.HandleFunc("GET /v1/feed_follows", config.middlewareAuth(config.getFeedFollows))
+    mux.HandleFunc("DELETE /v1/feed_follows/{feed_follows}", config.middlewareAuth(config.deleteFeedFollow))
     mux.HandleFunc("GET /v1/feeds", config.getFeeds)
 
     server := http.Server{
