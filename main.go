@@ -42,6 +42,10 @@ type feedReqMsg struct {
     URL string `json:"url"`
 }
 
+type feedFollowReqMsg struct { 
+    FeedId string `json:"feed_id"`
+}
+
 type apiConfig struct {
     DB *database.Queries
 }
@@ -77,6 +81,47 @@ func (c *apiConfig) middlewareAuth(handler authedHandler) http.HandlerFunc {
         handler(w, r, user)
 
     }
+}
+
+func (c *apiConfig) createFeedFollowAuth(w http.ResponseWriter, r *http.Request, user database.User) {
+    log.Println("creating a feed follow")
+
+    var reqMsg feedFollowReqMsg
+
+    if err := json.NewDecoder(r.Body).Decode(&reqMsg); err != nil {
+        log.Println(err)
+        respondWithError(w, http.StatusInternalServerError, "Internal server error")
+        return
+    }
+
+    parsedUUID, err := uuid.Parse(reqMsg.FeedId)
+
+    if err != nil {
+        log.Println(err)
+        respondWithError(w, http.StatusInternalServerError, "Internal server error")
+        return
+    }
+
+    feedFollowParams:= database.CreateFeedFollowParams{
+        ID: uuid.New(),
+        CreatedAt: time.Now(),
+        UpdatedAt: time.Now(),
+        UserID: user.ID,
+        FeedID: parsedUUID,
+    }
+
+
+    createdFeedFollow, err := c.DB.CreateFeedFollow(context.Background(), feedFollowParams)
+
+    if err != nil {
+        log.Println(err)
+        respondWithError(w, http.StatusInternalServerError, "Internal Server error")
+        return
+    }
+
+    respondWithJSON(w, http.StatusOK, createdFeedFollow)
+
+    log.Println("successfully created feed follow")
 }
 
 func (c *apiConfig) createFeedAuth(w http.ResponseWriter, r *http.Request, user database.User) {
@@ -280,6 +325,7 @@ func main() {
     mux.HandleFunc("POST /v1/users", config.createUserHandler)
     mux.HandleFunc("GET /v1/users", config.middlewareAuth(config.getUserHandlerAuth))
     mux.HandleFunc("POST /v1/feeds", config.middlewareAuth(config.createFeedAuth))
+    mux.HandleFunc("POST /v1/feed_follows", config.middlewareAuth(config.createFeedFollowAuth))
     mux.HandleFunc("GET /v1/feeds", config.getFeeds)
 
     server := http.Server{

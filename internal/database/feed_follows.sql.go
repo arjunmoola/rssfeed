@@ -77,3 +77,69 @@ func (q *Queries) GetFeedFollows(ctx context.Context) ([]FeedFollow, error) {
 	}
 	return items, nil
 }
+
+const getFeedFollowsWithFeedId = `-- name: GetFeedFollowsWithFeedId :many
+SELECT id, created_at, updated_at, user_id, feed_id FROM feed_follows Where feed_id = $1
+`
+
+func (q *Queries) GetFeedFollowsWithFeedId(ctx context.Context, feedID uuid.UUID) ([]FeedFollow, error) {
+	rows, err := q.db.QueryContext(ctx, getFeedFollowsWithFeedId, feedID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FeedFollow
+	for rows.Next() {
+		var i FeedFollow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.UserID,
+			&i.FeedID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getFeedFollowsWithUserId = `-- name: GetFeedFollowsWithUserId :many
+SELECT id, created_at, updated_at, user_id, feed_id FROM feed_follows WHERE user_id = $1
+`
+
+func (q *Queries) GetFeedFollowsWithUserId(ctx context.Context, userID uuid.UUID) ([]FeedFollow, error) {
+	rows, err := q.db.QueryContext(ctx, getFeedFollowsWithUserId, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FeedFollow
+	for rows.Next() {
+		var i FeedFollow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.UserID,
+			&i.FeedID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
