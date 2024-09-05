@@ -5,3 +5,9 @@ RETURNING *;
 
 -- name: GetFeedFollows :many
 SELECT * FROM feed_follows;
+
+-- name: GetFeedFollowsWithUserId :many
+SELECT * FROM feed_follows WHERE user_id = $1;
+
+-- name: GetFeedFollowsWithFeedId :many
+SELECT * FROM feed_follows Where feed_id = $1;
