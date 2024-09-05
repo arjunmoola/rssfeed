@@ -46,6 +46,10 @@ type feedFollowReqMsg struct {
     FeedId string `json:"feed_id"`
 }
 
+type deleteFeedFollowMsg struct {
+    FeedFollowId string `json:"feed_follow_id"`
+}
+
 type apiConfig struct {
     DB *database.Queries
 }
@@ -122,6 +126,39 @@ func (c *apiConfig) createFeedFollowAuth(w http.ResponseWriter, r *http.Request,
     respondWithJSON(w, http.StatusOK, createdFeedFollow)
 
     log.Println("successfully created feed follow")
+}
+
+func (c *apiConfig) deleteFeedFollow(w http.ResponseWriter, r *http.Request, user database.User) {
+    id := r.PathValue("feed_follows")
+
+
+    //var reqmsg deleteFeedFollowMsg
+
+    //if err := json.NewDecoder(r.Body).Decode(&reqmsg); err != nil {
+    //    log.Println(err)
+    //    respondWithError(w, http.StatusInternalServerError, "Internal Server Error")
+    //    return
+    //}
+
+    parsedId, err := uuid.Parse(id)
+
+    if err != nil {
+        log.Println(err)
+        respondWithError(w, http.StatusInternalServerError, "Internal Server Error")
+        return
+    }
+
+    deletedFeedFollow, err := c.DB.DeleteFeedFollowWithId(context.Background(), parsedId)
+
+    if err != nil {
+        log.Println(err)
+        respondWithError(w, http.StatusOK, "Unable to delete requested feed follow")
+        return
+    }
+
+    respondWithJSON(w, http.StatusOK, deletedFeedFollow)
+
+    log.Printf("Feed Follow: %v has been deleted", deletedFeedFollow.ID)
 }
 
 func (c *apiConfig) createFeedAuth(w http.ResponseWriter, r *http.Request, user database.User) {
@@ -326,6 +363,7 @@ func main() {
     mux.HandleFunc("GET /v1/users", config.middlewareAuth(config.getUserHandlerAuth))
     mux.HandleFunc("POST /v1/feeds", config.middlewareAuth(config.createFeedAuth))
     mux.HandleFunc("POST /v1/feed_follows", config.middlewareAuth(config.createFeedFollowAuth))
+    mux.HandleFunc("DELETE /v1/feed_follows{feed_follows}", config.middlewareAuth(config.deleteFeedFollow))
     mux.HandleFunc("GET /v1/feeds", config.getFeeds)
 
     server := http.Server{
