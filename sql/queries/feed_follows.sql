@@ -11,3 +11,6 @@ SELECT * FROM feed_follows WHERE user_id = $1;
 
 -- name: GetFeedFollowsWithFeedId :many
 SELECT * FROM feed_follows Where feed_id = $1;
+
+-- name: DeleteFeedFollowWithId: :one
+DELETE FROM feed_follows WHERE id = $1
